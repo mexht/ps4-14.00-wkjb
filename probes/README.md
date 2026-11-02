@@ -23,5 +23,11 @@ process loads libSceSysmodule, and `stage_hen_diag_v1` patches out HEN's own
 daemon kill. Without the restart, HEN's FTP (2121), binloader (9090) and klog
 (3232) never start even though `plugin_server.prx` is on disk.
 
+`stage_hen_serverstart_v1` is the fallback when the console does not run
+ScePartyDaemon. It loads `plugin_server.prx` into the page and calls
+`plugin_load`, which starts FTP (2121) and klog (3232) in this WebProcess.
+Those servers live only while the lab page stays open. Use it with
+`chain.py --server` (which skips the ShellUI restart on purpose).
+
 `array_iterator_short_control_v1` is a harmless self-test probe used only by
 `lab/test_lab.py` / `lab/test_page.js`; the chain does not use it.

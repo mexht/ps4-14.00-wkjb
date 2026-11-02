@@ -2,7 +2,7 @@
 """Drive the full 14.00 browser chain, with automatic recovery on a bad draw.
 
 usage: chain.py [session-id|auto] [--attempts N] [--launch] [--hen-diag]
-                [--wait-reload SECONDS] [--settle SECONDS]
+                [--server] [--wait-reload SECONDS] [--settle SECONDS]
                 [--stop-after STAGE] [--resume-after STAGE]
 
 The prefix (storage -> groom) is heap-sensitive and fails on roughly half of
@@ -31,6 +31,12 @@ If the kernel already carries the guard patches from an earlier chain on the
 same boot, the driver skips the patch and switches to repair-only (prison ->
 prxensure -> plugins -> safedown -> PartyDaemon restart -> ShellUI restart),
 provided HEN's 594 hook is live.
+
+--server starts HEN's plugin_server inside this page after safedown and then
+stops, without restarting SceShellUI or ScePartyDaemon. That gives FTP 2121
+and klog 3232 for as long as the lab page stays open, which is the fallback
+on consoles that do not run ScePartyDaemon. The HEN Settings menu is not
+injected on that boot; run --launch without --server for the menu.
 
 This release ships the HEN payload image (artifacts/hen.bin) and the
 rendered 632-byte kernel patch probe (probes/stage_patch_v1.js). If either
@@ -218,6 +224,7 @@ def reload_and_wait(old):
 
 
 HEN_DIAG = False
+SERVER = False
 SETTLE = 0
 STOP_AFTER = None
 RESUME_AFTER = None
@@ -301,6 +308,23 @@ def restart_party(session):
     return check
 
 
+def start_server(session):
+    """Run HEN's plugin_server inside the page (FTP 2121, klog 3232).
+
+    plugin_load() is process-agnostic: it spawns the two server threads and
+    parks its own thread. It stays up only while this WebProcess lives, so it
+    is the fallback when ScePartyDaemon is not available.
+    """
+    check = run(session, "stage_hen_serverstart_v1")
+    if d(check).get("state") == "started":
+        print("  plugin_server started in this page: FTP 2121, klog 3232 "
+              "(lives while the page stays open)", flush=True)
+    else:
+        print("  WARNING: plugin_server did not start; see the probe details",
+              flush=True)
+    return check
+
+
 def repair_only(session):
     """Repair the PRXs on a boot where an earlier chain already patched the kernel.
 
@@ -330,6 +354,10 @@ def repair_only(session):
     if gate(session, "stage_safedown_v1",
             lambda c: d(c).get("state") == "restored") is None:
         return "stop"
+    if SERVER:
+        stage("serverstart")
+        start_server(session)
+        return "ok"
     if HEN_DIAG:
         print("  --hen-diag: PRXs repaired; not restarting SceShellUI",
               flush=True)
@@ -657,6 +685,10 @@ def attempt(session):
         print("  deps handles=%s missing=%s" % (d(check).get("handles", "-"),
                                                 d(check).get("missing", "-")),
               flush=True)
+        if SERVER:
+            stage("serverstart")
+            start_server(session)
+            return "ok"
         stage("partyrestart")
         restart_party(session)
         stage("shellrestart")
@@ -690,13 +722,17 @@ def attempt(session):
     print("  deps handles=%s missing=%s" % (d(check).get("handles", "-"),
                                             d(check).get("missing", "-")),
           flush=True)
+    if SERVER:
+        stage("serverstart")
+        start_server(session)
     return "ok"
 
 
 def main():
-    global HEN_DIAG, SETTLE, STOP_AFTER, RESUME_AFTER, RELOAD_WAIT
+    global HEN_DIAG, SERVER, SETTLE, STOP_AFTER, RESUME_AFTER, RELOAD_WAIT
     global OPS_LIVE
     HEN_DIAG = "--hen-diag" in sys.argv
+    SERVER = "--server" in sys.argv
     if "--wait-reload" in sys.argv:
         RELOAD_WAIT = int(sys.argv[sys.argv.index("--wait-reload") + 1])
     if "--settle" in sys.argv:

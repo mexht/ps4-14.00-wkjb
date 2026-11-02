@@ -131,6 +131,7 @@ python3 chain-driver/chain.py <session-id> --launch
 | `--launch` | install: chain → install (`kill_ui=0`) → wait for the 594 hook → repair PRXs → disable `plugin_mono` in `plugins.ini` → `safedown` → verify → restart `ScePartyDaemon` → restart `SceShellUI` |
 | `--wait-reload N` | seconds to wait for a reopened browser after a bad draw (default 240) |
 | `--hen-diag` | read-only diagnostic install, no ShellUI restart |
+| `--server` | start HEN's plugin_server in the page (FTP 2121, klog 3232); no ShellUI/PartyDaemon restart, so the page and server stay up |
 | `--stop-after STAGE` | stop before a named stage |
 | `--resume-after STAGE` | resume after a named prefix stage |
 | `--settle N` | idle N seconds after install, then ping |
