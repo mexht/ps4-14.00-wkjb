@@ -1,0 +1,6 @@
+{
+  "probe_id": "reload_v1",
+  "script": "reload_v1.js",
+  "check_ids": ["reload_v1"],
+  "timeout_ms": 10000
+}

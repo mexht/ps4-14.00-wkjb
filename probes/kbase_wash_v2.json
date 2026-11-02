@@ -1,0 +1,6 @@
+{
+  "probe_id": "kbase_wash_v2",
+  "script": "kbase_wash_v2.js",
+  "check_ids": ["kbase_wash_v2"],
+  "timeout_ms": 30000
+}

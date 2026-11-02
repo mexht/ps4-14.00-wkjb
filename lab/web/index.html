@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>PS4 14.00 webkit jb</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <h1>PS4 14.00 webkit jb</h1>
+    <p class="sub">browser/WebKit chain &mdash; live progress</p>
+  </div>
+  <div class="status">
+    <span id="pill" class="pill is-idle">starting</span>
+    <div class="meta">
+      <span class="meta-item"><span class="k">session</span> <b id="session">&mdash;</b></span>
+      <span class="meta-item"><span class="k">age</span> <b id="age">00:00</b></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card stage">
+    <h2>Current stage</h2>
+    <p id="stage" class="stage-text">waiting for the chain</p>
+    <p class="stage-meta"><span id="stage-count">0</span> stage events this page</p>
+  </section>
+
+  <section class="card result">
+    <h2>Last result</h2>
+    <div id="result" class="result-body">no probe has completed yet</div>
+  </section>
+</main>
+
+<section class="card log-card">
+  <div class="log-head">
+    <h2>Live log</h2>
+    <div class="log-actions">
+      <button id="pause" type="button">pause</button>
+      <button id="clear" type="button">clear</button>
+    </div>
+  </div>
+  <div id="log" class="log" role="log" aria-live="polite"></div>
+</section>
+
+<script src="/sha256.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

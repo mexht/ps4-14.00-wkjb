@@ -1,0 +1,8 @@
+{
+  "probe_id": "stage_c_race_v1",
+  "script": "stage_c_race_v1.js",
+  "check_ids": [
+    "stage_c_race_v1"
+  ],
+  "timeout_ms": 30000
+}

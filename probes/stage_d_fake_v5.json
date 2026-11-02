@@ -1,0 +1,6 @@
+{
+  "probe_id": "stage_d_fake_v5",
+  "script": "stage_d_fake_v5.js",
+  "check_ids": ["stage_d_fake_v5"],
+  "timeout_ms": 30000
+}

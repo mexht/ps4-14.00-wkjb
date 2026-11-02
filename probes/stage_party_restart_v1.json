@@ -1,0 +1,6 @@
+{
+  "probe_id": "stage_party_restart_v1",
+  "script": "stage_party_restart_v1.js",
+  "check_ids": ["party_restart_v1"],
+  "timeout_ms": 30000
+}

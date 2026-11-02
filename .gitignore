@@ -1,0 +1,20 @@
+# Generated / temporary files
+artifacts/*.orig
+artifacts/*.tmp
+artifacts/*.debugmenu3
+
+# Lab runtime state
+lab/state.json
+lab/results/
+lab/dumps/
+lab/*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS noise
+.DS_Store
+*.swp
+*.kate-swp

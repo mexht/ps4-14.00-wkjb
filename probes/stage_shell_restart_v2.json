@@ -1,0 +1,6 @@
+{
+  "probe_id": "stage_shell_restart_v2",
+  "script": "stage_shell_restart_v2.js",
+  "check_ids": ["shell_restart_v2"],
+  "timeout_ms": 30000
+}

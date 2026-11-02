@@ -1,0 +1,8 @@
+{
+  "probe_id": "clone_history_inrange_anchor_groom_push_v9",
+  "script": "clone_history_inrange_anchor_groom_push_v9.js",
+  "check_ids": [
+    "inrange_anchor_groom_push_v9"
+  ],
+  "timeout_ms": 30000
+}
