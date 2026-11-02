@@ -476,10 +476,18 @@ def make_handler(store: Store):
         hen_bytes = (HERE.parent / "artifacts" / "hen.bin").read_bytes()
     except OSError:
         hen_bytes = None
+    try:
+        goldhen_bytes = (HERE.parent / "artifacts" / "goldhen.bin").read_bytes()
+    except OSError:
+        goldhen_bytes = None
     build = hashlib.sha256(
         b"".join(assets[k] for k in sorted(assets)) +
-        (b"/hen.bin\0" + hen_bytes if hen_bytes else b"")).hexdigest()
+        (b"/hen.bin\0" + hen_bytes if hen_bytes else b"") +
+        (b"/goldhen.bin\0" + goldhen_bytes if goldhen_bytes else b"")
+    ).hexdigest()
     hen_sha = hashlib.sha256(hen_bytes).hexdigest() if hen_bytes else None
+    goldhen_sha = (hashlib.sha256(goldhen_bytes).hexdigest()
+                   if goldhen_bytes else None)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "PS4Lab/1.0"
@@ -533,6 +541,7 @@ def make_handler(store: Store):
             query = parse_qs(urlsplit(self.path).query)
             if path == "/api/health":
                 self.json(200, {"status": "ok", "build": build, "hen_sha256": hen_sha,
+                                "goldhen_sha256": goldhen_sha,
                                 "sessions": len(store.sessions)})
                 return
             if path == "/hen.bin":
@@ -547,6 +556,19 @@ def make_handler(store: Store):
                 self.send_header("X-FW14-Hen-SHA256", hen_sha)
                 self.end_headers()
                 self.wfile.write(hen_bytes)
+                return
+            if path == "/goldhen.bin":
+                if goldhen_bytes is None:
+                    self.json(404, {"error": "artifacts/goldhen.bin is missing"})
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(len(goldhen_bytes)))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("X-FW14-GoldHEN-SHA256", goldhen_sha)
+                self.end_headers()
+                self.wfile.write(goldhen_bytes)
                 return
             if path == "/api/log":
                 try:
@@ -757,6 +779,13 @@ def main() -> int:
             else:
                 store.event("warn", "artifacts/hen.bin is missing: "
                                     "stage_hen_map_v1 will fail")
+            goldhen = HERE.parent / "artifacts" / "goldhen.bin"
+            if goldhen.exists():
+                store.event("info", "serving /goldhen.bin from artifacts/ "
+                                    "(%d bytes)" % goldhen.stat().st_size)
+            else:
+                store.event("warn", "artifacts/goldhen.bin is missing: "
+                                    "stage_goldhen_v2 will fail")
             try:
                 server.serve_forever()
             except KeyboardInterrupt:

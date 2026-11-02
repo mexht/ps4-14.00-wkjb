@@ -57,8 +57,9 @@ running it.
 | `POST /api/commands/result` | page | checks, validated against the manifest |
 | `POST /api/log` | page | page-side log line |
 | `GET /api/log?since=N` | page | verbose log poll (drives the live view) |
-| `GET /api/health` | anyone | liveness + build hash + `hen.bin` digest |
-| `GET /hen.bin` | page | bundled HEN image from `artifacts/` |
+| `GET /api/health` | anyone | liveness + build hash + `hen.bin` / `goldhen.bin` digests |
+| `GET /hen.bin` | page | bundled ps4-hen image from `artifacts/` |
+| `GET /goldhen.bin` | page | bundled official GoldHEN image from `artifacts/` |
 | `/api/admin/*` | loopback only | CLI: sessions, commands, enqueue, note, wait, cancel, log |
 
 Results must match the manifest's `check_ids` in order; a probe that could not

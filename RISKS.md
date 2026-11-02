@@ -64,7 +64,7 @@ data. Back up anything important first.
 
 ### 2.5 Instability
 
-HEN and its plugins run with high privileges. A buggy or malicious plugin can
+HEN payloads and their plugins run with high privileges. A buggy or malicious plugin can
 crash the console or corrupt data. Install only plugins whose source or author
 you trust.
 
@@ -109,10 +109,11 @@ the hardware.
   network can queue probes that execute in the console browser with kernel
   access. Use a trusted LAN, bind to the LAN interface, firewall the port, and
   stop the server when finished.
-- Verify the bundled `artifacts/hen.bin`, `artifacts/pkb.bin` and
-  `probes/stage_patch_v1.js` against `SHA256SUMS` and against the hashes
-  printed by `prepare_operator_data.py`. Do not run a payload or blob from an
-  untrusted source, and do not patch the scripts to bypass the checks.
+- Verify the bundled `artifacts/goldhen.bin`, `artifacts/hen.bin`,
+  `artifacts/pkb.bin` and `probes/stage_patch_v1.js` against `SHA256SUMS` and
+  against the hashes printed by `prepare_operator_data.py`. Do not run a
+  payload or blob from an untrusted source, and do not patch the scripts to
+  bypass the checks.
 - The page and probes are served by your own PC. Do not substitute a page from
   a third party.
 

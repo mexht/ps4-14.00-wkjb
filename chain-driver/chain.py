@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Drive the full 14.00 browser chain, with automatic recovery on a bad draw.
 
-usage: chain.py [session-id|auto] [--attempts N] [--launch] [--hen-diag]
+usage: chain.py [session-id|auto] [--attempts N] [--launch]
+                [--payload goldhen|hen] [--hen-diag]
                 [--server] [--wait-reload SECONDS] [--settle SECONDS]
                 [--stop-after STAGE] [--resume-after STAGE]
 
@@ -18,6 +19,13 @@ itself. Nothing has been written to the kernel at that point, so no reboot is
 needed. Failures after `fg` do stop the run: those need a power cycle.
 
 --launch runs the full automated install:
+    default payload is the official GoldHEN v2.4b18.13 raw image
+    (artifacts/goldhen.bin): chain -> patch -> prison -> safedown -> map the
+    image into a fresh RWX mapping and enter its ring-0 installer through the
+    kexec gate (syscall 11). GoldHEN installs its own hooks and starts its own
+    FTP (2121), binloader (9090) and klog (3232) services.
+    --payload hen selects the ps4-hen install path instead:
+
     install with kill_ui=0 (stage_hen_diag_v1) while the ROP primitive is
     alive -> wait for sysent[594] to become HEN's hook -> repair/verify the
     five /data/hen/plugin_*.prx instances (needs the live fself hooks) ->
@@ -38,11 +46,12 @@ and klog 3232 for as long as the lab page stays open, which is the fallback
 on consoles that do not run ScePartyDaemon. The HEN Settings menu is not
 injected on that boot; run --launch without --server for the menu.
 
-This release ships the HEN payload image (artifacts/hen.bin) and the
-rendered 632-byte kernel patch probe (probes/stage_patch_v1.js). If either
-is missing, restore it from the package or rebuild it from your own copies
-with tools/prepare_operator_data.py; the driver refuses to start without
-them.
+This release ships both payload images (artifacts/goldhen.bin and
+artifacts/hen.bin) and the rendered 632-byte kernel patch probe
+(probes/stage_patch_v1.js). The driver requires the selected payload and the
+patch probe; if either is missing, restore it from the package or rebuild it
+from your own copies with tools/prepare_operator_data.py. GoldHEN is the
+default; `--payload hen` selects ps4-hen.
 
 --hen-diag is the read-only diagnostic variant: it installs with kill_ui=0,
 reads sysent[594/107/108/109], repairs the PRXs, restores the global
@@ -83,8 +92,9 @@ def wait_for_reloaded_page(old, timeout):
     return None
 
 
-OPERATOR_HELP = ("restore artifacts/hen.bin and probes/stage_patch_v1.js "
-                 "from the package, or rebuild them with "
+OPERATOR_HELP = ("restore artifacts/goldhen.bin (or artifacts/hen.bin for "
+                 "--payload hen) and probes/stage_patch_v1.js from the "
+                 "package, or rebuild them with "
                  "tools/prepare_operator_data.py")
 
 
@@ -94,7 +104,8 @@ def operator_data_problem():
     This release ships both (see COMPLIANCE.md). The check remains so a
     partial copy fails early instead of halfway through a run.
     """
-    need = [os.path.join(ROOT, "artifacts", "hen.bin"),
+    image = "goldhen.bin" if PAYLOAD == "goldhen" else "hen.bin"
+    need = [os.path.join(ROOT, "artifacts", image),
             os.path.join(ROOT, "probes", "stage_patch_v1.js")]
     return [path for path in need if not os.path.isfile(path)]
 
@@ -229,6 +240,7 @@ SETTLE = 0
 STOP_AFTER = None
 RESUME_AFTER = None
 RELOAD_WAIT = 240
+PAYLOAD = os.environ.get("FW14_PAYLOAD", "goldhen")
 
 # Set once `fg` has rotated the fake filterops into the global sysfilt_ops
 # slot, and cleared as soon as a safedown attempt starts. If a later stage
@@ -564,6 +576,11 @@ def attempt(session):
                    len(lows) == 24 and lows.count("eb") == 23 and
                    "48" in lows)
         if already:
+            if PAYLOAD == "goldhen":
+                print("  kernel already patched by an earlier chain on this "
+                      "boot; GoldHEN is launched once per boot - cold reboot "
+                      "to launch it again", flush=True)
+                return "stop"
             print("  kernel already patched by an earlier chain on this boot; "
                   "skipping patch and using the repair-only path", flush=True)
             return repair_only(session)
@@ -581,6 +598,32 @@ def attempt(session):
     if gate(session, "stage_prison_v1",
             lambda c: d(c).get("state") == "escaped") is None:
         return "stop"
+
+    if PAYLOAD == "goldhen":
+        # GoldHEN brings its own hooks and services. Put the real sysfilt_ops
+        # back first: the payload may restart SceShellUI, which would destroy
+        # this page and any chance to run safedown afterwards.
+        stage("safedown")
+        OPS_LIVE = False
+        if gate(session, "stage_safedown_v1",
+                lambda c: d(c).get("state") == "restored") is None:
+            return "stop"
+        if "--launch" not in sys.argv:
+            print("  kernel patched and sandbox escaped; GoldHEN not started "
+                  "(pass --launch to start it)", flush=True)
+            return "ok"
+        stage("goldhen")
+        check = gate(session, "stage_goldhen_v2",
+                     lambda c: d(c).get("state") in
+                     ("installed", "loaded", "called"))
+        if check is None:
+            return "stop"
+        state = d(check).get("state", "-")
+        print("  GoldHEN v2.4b18.13 installer returned (%s); klog 3232 is up. "
+              "FTP 2121 and binloader 9090 follow GoldHEN's own settings menu"
+              % state, flush=True)
+        return "ok"
+
     stage("henmap")
     if gate(session, "stage_hen_map_v1",
             lambda c: d(c).get("state") == "mapped") is None:
@@ -730,9 +773,24 @@ def attempt(session):
 
 def main():
     global HEN_DIAG, SERVER, SETTLE, STOP_AFTER, RESUME_AFTER, RELOAD_WAIT
-    global OPS_LIVE
+    global OPS_LIVE, PAYLOAD
     HEN_DIAG = "--hen-diag" in sys.argv
     SERVER = "--server" in sys.argv
+    if "--payload" in sys.argv:
+        try:
+            PAYLOAD = sys.argv[sys.argv.index("--payload") + 1]
+        except IndexError:
+            print("--payload needs a value: goldhen or hen", flush=True)
+            return 2
+    if PAYLOAD not in ("goldhen", "hen"):
+        print("--payload must be 'goldhen' (default) or 'hen'", flush=True)
+        return 2
+    if HEN_DIAG and PAYLOAD != "hen":
+        print("--hen-diag is a ps4-hen diagnostic; add --payload hen",
+              flush=True)
+        return 2
+    print("payload: %s" % PAYLOAD, flush=True)
+    note("payload: " + PAYLOAD, "stage")
     if "--wait-reload" in sys.argv:
         RELOAD_WAIT = int(sys.argv[sys.argv.index("--wait-reload") + 1])
     if "--settle" in sys.argv:

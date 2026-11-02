@@ -95,6 +95,15 @@ def main() -> int:
         else:
             check("missing hen.bin is reported", status == 404, str(status))
 
+        status, body, headers = call(base, "GET", "/goldhen.bin")
+        goldhen_path = REPO / "artifacts" / "goldhen.bin"
+        if goldhen_path.exists():
+            check("goldhen.bin served",
+                  status == 200 and hashlib.sha256(body).hexdigest() ==
+                  headers.get("X-FW14-GoldHEN-SHA256"), str(status))
+        else:
+            check("missing goldhen.bin is reported", status == 404, str(status))
+
         status, body, _ = call(base, "POST", "/api/sessions", {
             "firmware_label": "14.00",
             "user_agent": "Mozilla/5.0 (PlayStation 4/14.00) AppleWebKit/605.1.15",

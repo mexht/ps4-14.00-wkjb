@@ -10,8 +10,8 @@ compliance statement, **not legal advice**.
 
 This is a security-research and homebrew tool for a **retail PlayStation 4
 that you own**, running firmware **14.00**. It demonstrates a browser-only
-exploit chain and installs HEN (Homebrew Enabler) so that homebrew software
-and user-controlled plugins can run.
+exploit chain and installs a homebrew enabler (GoldHEN by default, or
+ps4-hen) so that homebrew software and user-controlled plugins can run.
 
 It is provided for:
 
@@ -30,7 +30,8 @@ The package includes the files needed to run the chain:
 
 | included item | source / credit |
 | --- | --- |
-| `artifacts/hen.bin` — HEN 2.2.0 image for 14.00, with the Debug Settings patch and `td_name` gate NOP applied | [Scene-Collective/ps4-hen](https://github.com/Scene-Collective/ps4-hen), built by its contributors. See [`CREDITS.md`](CREDITS.md). |
+| `artifacts/goldhen.bin` — official GoldHEN v2.4b18.13 payload for 14.00, unmodified (default) | [GoldHEN/GoldHEN](https://github.com/GoldHEN/GoldHEN), by SiSTRo and contributors. See [`CREDITS.md`](CREDITS.md). |
+| `artifacts/hen.bin` — ps4-hen 2.2.0 image for 14.00, with the Debug Settings patch and `td_name` gate NOP applied (`--payload hen`) | [Scene-Collective/ps4-hen](https://github.com/Scene-Collective/ps4-hen), built by its contributors. See [`CREDITS.md`](CREDITS.md). |
 | `artifacts/pkb.bin` — the reviewed 632-byte 14.00 kernel patch blob | derived from Hx1400 research material; credited in [`CREDITS.md`](CREDITS.md). |
 | `probes/stage_patch_v1.js` — the patch probe with that blob embedded | generated locally by `tools/prepare_operator_data.py`. |
 | driver, lab, probes, tools, tests, documentation | written for this project. |
@@ -54,9 +55,9 @@ By using this package you agree to:
 
 1. **Own the console.** Use it only on hardware you own or are explicitly
    authorised to modify.
-2. **Use the bundled material as provided.** The HEN image and kernel blob are
-   third-party work included here with credit. Verify their hashes before use,
-   and do not present them as your own work.
+2. **Use the bundled material as provided.** The payload images and kernel
+   blob are third-party work included here with credit. Verify their hashes
+   before use, and do not present them as your own work.
 3. **Do not pirate.** Do not use the tool to install, run, or distribute
    games, DLC, themes, or other content you do not own or have the right to
    use.

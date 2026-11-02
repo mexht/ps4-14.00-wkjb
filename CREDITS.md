@@ -15,8 +15,9 @@ Written for this project and measured on the author's own console:
 - the 14.00 browser chain: history address-directed read/write, the groom /
   spray / pair / plan / install prefix, the kqueue + zone-256 UAF race
   (stage C), the D-plant variants, the fake `filterops` rotation (F/G), the
-  ROP call primitive, the ucred and sandbox escape, the HEN image mapping,
-  and `stage_safedown_v1` (restoring the global `sysfilt_ops` slot);
+  ROP call primitive, the ucred and sandbox escape, the HEN image mapping, the
+  GoldHEN ring-0 installer launch, and `stage_safedown_v1` (restoring the
+  global `sysfilt_ops` slot);
 - `probes/` and their manifests, `lab/` (queue, page, tests),
   `chain-driver/`, the preparation and image-patch tools, and the
   documentation in this package.
@@ -27,7 +28,8 @@ Written for this project and measured on the author's own console:
 
 | project | what this package uses |
 | --- | --- |
-| [Scene-Collective/ps4-hen](https://github.com/Scene-Collective/ps4-hen) (v2.2.0 BETA, 14.00 build) | The payload that runs after the chain, included as `artifacts/hen.bin` with credit. Its embedded `hen.ini` template and PRX slices are read from that binary at runtime. |
+| [GoldHEN/GoldHEN](https://github.com/GoldHEN/GoldHEN) (v2.4b18.13, 14.00 build) | The default payload, included unmodified as `artifacts/goldhen.bin` with credit. Its installer convention (`jmp rel32` head, ring-0 entry at `0x1653`) is driven by `probes/stage_goldhen_v2.js`. |
+| [Scene-Collective/ps4-hen](https://github.com/Scene-Collective/ps4-hen) (v2.2.0 BETA, 14.00 build) | The alternative payload (`--payload hen`), included as `artifacts/hen.bin` with credit. Its embedded `hen.ini` template and PRX slices are read from that binary at runtime. |
 | [Scene-Collective/ps4-hen-plugins](https://github.com/Scene-Collective/ps4-hen-plugins) | Plugin interfaces and behaviour: `plugin_bootloader` / `plugin_loader` / `plugin_mono` / `plugin_server` / `plugin_shellcore`, `plugins.ini` `[all]`, the `/data/hen/shellui_data` menu marker, and the `_init_env` injection path. |
 | [OpenOrbis/mira-project](https://github.com/OpenOrbis/mira-project) | The `sys_dynlib_load_prx` plugin-injection technique (`Substitute.cpp`) that the HEN hook follows. No Mira source is redistributed. |
 | [Scene-Collective/ps4-payload-sdk](https://github.com/Scene-Collective/ps4-payload-sdk) | Payload build conventions (not redistributed). |
@@ -60,8 +62,10 @@ Written for this project and measured on the author's own console:
 
 ## 4. Validation
 
-The one-shot `--launch` flow in this package was validated on two consecutive
-cold boots of a retail 14.00 console (2026-11-02): the first boot repaired
-four plugin PRXs after the hook went live; the second found them already
-loadable and reported `unchanged`. Both ended with `CHAIN COMPLETE`, a
-restarted `SceShellUI`, and a working HEN Settings menu.
+The one-shot `--launch --payload hen` flow in this package was validated on
+two consecutive cold boots of a retail 14.00 console (2026-11-02): the first
+boot repaired four plugin PRXs after the hook went live; the second found them
+already loadable and reported `unchanged`. Both ended with `CHAIN COMPLETE`, a
+restarted `SceShellUI`, and a working HEN Settings menu. The default GoldHEN
+path uses the same kernel stages and the official raw payload; exercise it on
+your own console before relying on it.
