@@ -34,6 +34,7 @@ import json
 import os
 import re
 import secrets
+import subprocess
 import sys
 import threading
 import time
@@ -58,6 +59,72 @@ CHECK_ID = re.compile(r"[a-z][a-z0-9_-]{0,63}\Z")
 STATUSES = ("pass", "fail", "unsupported", "error")
 MAX_BODY = 1 << 20
 MAX_LOG = 2000
+
+# `?auto=goldhen` on the page URL starts the chain from the server as soon as
+# the session registers. The console still has to open the browser, but nothing
+# has to be typed or run on the PC: the page is the trigger, like the app
+# launcher in a one-click setup.
+AUTOSTART_MODES = ("goldhen", "hen")
+_autostart_lock = threading.Lock()
+_autostart_running = set()
+
+
+def is_ps4_user_agent(user_agent) -> bool:
+    """The chain is 14.00-specific: never start it for a desktop browser."""
+    return "PlayStation 4" in str(user_agent or "")
+
+
+def is_ps4_client(row: dict) -> bool:
+    return is_ps4_user_agent(row.get("user_agent"))
+
+
+def start_chain(store, session_id: str, mode: str, why: str = "auto") -> bool:
+    """Spawn chain.py for a session. One chain at a time, per server."""
+    if mode not in AUTOSTART_MODES:
+        return False
+    if why == "auto" and os.environ.get("FW14_AUTOSTART", "1") == "0":
+        return False
+    row = store.sessions.get(session_id)
+    if row is None or not is_ps4_client(row):
+        store.event("warn", "chain refused: %s is not a PS4 client"
+                    % str(session_id)[:8], "pc")
+        return False
+    script = HERE.parent / "chain-driver" / "chain.py"
+    if not script.is_file():
+        store.event("error", "chain-driver/chain.py is missing", "pc")
+        return False
+    with _autostart_lock:
+        if _autostart_running:
+            return False
+        _autostart_running.add(session_id)
+
+    def run() -> None:
+        try:
+            store.dumps.mkdir(parents=True, exist_ok=True)
+            log_path = store.dumps / ("chain-%s.log" % session_id[:8])
+            store.event("stage", "chain start (%s) for %s"
+                        % (why, session_id[:8]), "pc")
+            with open(log_path, "w", encoding="utf-8") as fh:
+                rc = subprocess.call(
+                    [sys.executable, str(script), session_id,
+                     "--launch", "--payload", mode,
+                     "--wait-reload", "0", "--attempts", "1"],
+                    cwd=str(HERE.parent), stdout=fh,
+                    stderr=subprocess.STDOUT, env=dict(os.environ))
+            store.event("ok" if rc == 0 else "error",
+                        "chain exited %s (%s)" % (rc, log_path.name), "pc")
+        except Exception as exc:                       # noqa: BLE001
+            store.event("error", "chain start failed: %s" % exc, "pc")
+        finally:
+            with _autostart_lock:
+                _autostart_running.discard(session_id)
+
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+
+def autostart_chain(store, session_id: str, mode: str) -> None:
+    start_chain(store, session_id, mode, "auto")
 
 
 def now() -> str:
@@ -150,11 +217,11 @@ class Store:
                 "created_at": ts, "last_seen_at": ts,
             }
             self._save()
-        ps4 = "PlayStation 4/14.00" in user_agent
+        ps4 = is_ps4_user_agent(user_agent)
         self.event("info", "session %s connected from %s%s" % (
             sid[:8], ip, "" if ps4 else "  (user agent is not the PS4 14.00 form)"),
             source=sid[:8])
-        return {"session_id": sid, "session_secret": secret}
+        return {"session_id": sid, "session_secret": secret, "ps4": ps4}
 
     def auth(self, sid: str, secret: str) -> dict:
         if type(sid) is not str or not HEX32.fullmatch(sid):
@@ -660,6 +727,8 @@ def make_handler(store: Store):
                         value.get("firmware_label"), value.get("user_agent"),
                         value.get("runner_version", 0), self.client_address[0])
                     self.json(201, session)
+                    autostart_chain(store, session["session_id"],
+                                    str(value.get("auto", "")))
                     return
                 if path.startswith("/api/admin/"):
                     if not self.loopback():
@@ -682,6 +751,20 @@ def make_handler(store: Store):
                     return
                 sid = value.get("session_id")
                 secret = self.headers.get("X-FW14-Session", "")
+                if path == "/api/jailbreak":
+                    row = store.auth(sid, secret)
+                    if row.get("ip") != self.client_address[0]:
+                        self.json(403, {"error": "session ip mismatch"})
+                        return
+                    if not is_ps4_client(row):
+                        self.json(403, {"error": "not a PS4 client"})
+                        return
+                    mode = str(value.get("payload", "goldhen"))
+                    if not start_chain(store, sid, mode, "button"):
+                        self.json(409, {"error": "a chain is already running"})
+                        return
+                    self.json(202, {"started": True, "mode": mode})
+                    return
                 if path == "/api/commands/claim":
                     command = store.claim(sid, secret)
                     self.json(200, {"command": command})

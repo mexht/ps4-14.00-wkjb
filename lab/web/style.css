@@ -304,3 +304,59 @@ button:hover {
 .level-page .log-text {
   color: #cfe0f2;
 }
+
+/* one-click jailbreak */
+.jb-card {
+  padding: 14px 16px;
+}
+
+.jb-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.jb-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.jb-button {
+  background: #1d6b3a;
+  color: #eafff2;
+  border: 1px solid #2f9e57;
+  border-radius: 8px;
+  padding: 10px 26px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jb-button:hover {
+  background: #238047;
+}
+
+.jb-button:disabled {
+  background: #23303c;
+  color: #7d8c9c;
+  border-color: #2b3a4c;
+  cursor: default;
+}
+
+.jb-button.is-hen {
+  background: #23303c;
+  border-color: #3b4a5c;
+  color: #cfe0f2;
+}
+
+.jb-button.is-hen:hover {
+  background: #2b3a4c;
+}
+
+.jb-hint {
+  margin: 0;
+  color: #9fb2c6;
+  font-size: 12px;
+}

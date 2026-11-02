@@ -1,0 +1,14 @@
+[Unit]
+Description=PS4 14.00 browser lab (GoldHEN one-click)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/ps4-14.00-wkjb
+ExecStart=/usr/bin/python3 lab/server.py serve --host 0.0.0.0 --port 8765
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

@@ -40,18 +40,20 @@ ps4-14.00-hen-public/
 ├── chain-driver/chain.py     chain driver (stages, gates, recovery)
 ├── lab/server.py             queue + page server (stdlib only)
 ├── lab/web/                  page loaded by the console
+├── lab/ps4-lab.service       systemd user unit for an always-on host
 ├── artifacts/goldhen.bin     official GoldHEN v2.4b18.13 payload (default)
 ├── artifacts/hen.bin         pinned ps4-hen 2.2.0 image (--payload hen)
 ├── artifacts/pkb.bin         pinned 632-byte kernel patch blob
 ├── probes/                   browser-side stages and manifests
 ├── tools/                    payload preparation and HEN patchers
-├── README.md  RISKS.md  COMPLIANCE.md  CREDITS.md
+├── README.md  CHANGELOG.md  RISKS.md  COMPLIANCE.md  CREDITS.md
 └── SHA256SUMS
 ```
 
 The selected payload (`artifacts/goldhen.bin` by default, or
 `artifacts/hen.bin` with `--payload hen`) and `probes/stage_patch_v1.js` are
-required at runtime; the driver refuses to start without them.
+required at runtime; the driver refuses to start without them. Recent changes
+are listed in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 1. Verify the payload
 
@@ -119,12 +121,36 @@ node lab/test_page.js
 ### Open the page on the PS4
 
 1. Open the **system browser**.
-2. Go to `http://<PC-LAN-IP>:8765/`.
+2. Go to `http://<HOST-LAN-IP>:8765/`.
 3. Wait for **Connected** and a session id.
 
-Keep the page in the foreground. Nothing needs to be clicked on the console.
-If it cannot connect, check the PC firewall and that both devices are on the
-same subnet.
+The page has two buttons: **Jailbreak** starts the GoldHEN chain (GoldHEN
+v2.4b18.13, latest version by SiSTRo), and **ps4-hen** starts the ps4-hen
+2.2.0 chain. Pressing either asks the server to run that chain for the session
+(`POST /api/jailbreak`), so the server does the work and can run on any
+always-on machine on the LAN. The server refuses to start a chain for a session
+whose user agent is not a PS4, so a desktop browser on the LAN cannot trigger
+it. `lab/ps4-lab.service` is a systemd user unit for that:
+
+```bash
+cp lab/ps4-lab.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now ps4-lab
+```
+
+The unit expects the tree at `~/ps4-14.00-wkjb` and serves port 8765. Keep the
+page in the foreground while the chain runs. If it cannot connect, check the
+host firewall and that both devices are on the same subnet.
+
+The page can also start the chain by itself: add `?auto=goldhen` and it runs
+as soon as the session registers, with no click at all. The PS4 browser
+restores its last URL from
+`/user/home/<uid>/webbrowser/endhistory.txt`, so opening the browser is then
+the only step after a boot.
+
+GoldHEN survives **rest mode** on 14.00: choose Enter Rest Mode instead of a
+full shutdown and the payload, FTP 2121 and klog 3232 stay up across
+suspend/resume. Only a full power-off needs the chain again.
 
 ### Run the chain
 

@@ -20,6 +20,20 @@ python3 lab/server.py serve --host 0.0.0.0 --port 8765
 Open `http://<pc>:8765/` on the console. The page registers a session
 automatically and then polls for work; nothing needs to be clicked.
 
+Append `?auto=goldhen` and the server starts
+`chain.py --launch --payload goldhen` as soon as that session registers, so
+the page load is the trigger and nothing has to be run on the PC. Set
+`FW14_AUTOSTART=0` on the server to turn the behaviour off. The driver's
+output goes to `lab/dumps/chain-<session>.log`.
+
+The page's two buttons do the same on demand: **Jailbreak** for GoldHEN
+v2.4b18.13 and **ps4-hen** for ps4-hen 2.2.0 (`POST /api/jailbreak`,
+authenticated with the session secret and limited to the session's IP). A chain
+is only started when the session's user agent is a PS4, so a desktop browser
+cannot trigger one. That is the mode to use when the server runs on an
+always-on box: `lab/ps4-lab.service` is the user unit, with the tree expected
+at `~/ps4-14.00-wkjb`.
+
 State and output (all git-ignored):
 
 - `lab/state.json` — sessions, commands, log tail, sequence counter (atomic write)

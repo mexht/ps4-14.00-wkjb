@@ -13,6 +13,16 @@
   var LOG_LIMIT = 400;
   var MAX_LINES = 240;
 
+  /* `?auto=goldhen` makes the page ask the server to start the chain as soon
+     as this session registers. The browser still has to be opened, but after
+     that the console needs nothing from the PC: the restored page is the
+     trigger. */
+  function autoMode() {
+    var query = (window.location && window.location.search) || "";
+    var match = /[?&]auto=([a-z0-9_-]+)/.exec(query);
+    return match ? match[1] : "";
+  }
+
   var pill = document.getElementById("pill");
   var sessionLabel = document.getElementById("session");
   var ageLabel = document.getElementById("age");
@@ -22,6 +32,10 @@
   var logBox = document.getElementById("log");
   var pauseButton = document.getElementById("pause");
   var clearButton = document.getElementById("clear");
+  var jbButton = document.getElementById("jb");
+  var jbHint = document.getElementById("jb-hint");
+  var jbHenButton = document.getElementById("jb-hen");
+  var jbHenHint = document.getElementById("jb-hen-hint");
 
   var session = null;
   var active = false;
@@ -35,6 +49,9 @@
   var lastLine = "";
   var logTimer = null;
   var ageTimer = null;
+  var jbBusy = false;
+  var jbAllowed = true;
+  var jbActive = "goldhen";
 
   function setStatus(text, state) {
     pill.textContent = text;
@@ -131,6 +148,11 @@
     if (line.level === "stage") {
       stageEvents += 1;
       stageCount.textContent = String(stageEvents);
+    }
+    if (text.indexOf("chain start (") === 0) {
+      setJailbreakBusy(true, "chain running \u2014 watch the live log");
+    } else if (/^(chain exited|chain complete)/.test(text) || /^stop:/i.test(text)) {
+      setJailbreakBusy(false, "chain finished \u2014 see the live log");
     }
   }
 
@@ -394,9 +416,17 @@
     request("POST", "/api/sessions", {
       firmware_label: FIRMWARE,
       user_agent: navigator.userAgent || "unavailable",
-      runner_version: 1
+      runner_version: 1,
+      auto: autoMode()
     }, null, 10000).then(function (identity) {
       session = { id: identity.session_id, secret: identity.session_secret };
+      if (identity.ps4 === false) {
+        jbAllowed = false;
+        jbButton.disabled = true;
+        jbHenButton.disabled = true;
+        jbHint.textContent = "not a PS4 client \u2014 jailbreak disabled";
+        jbHenHint.textContent = "not a PS4 client";
+      }
       active = true;
       connectedAt = Date.now();
       sessionLabel.textContent = session.id.slice(0, 8);
@@ -412,6 +442,41 @@
     });
   }
 
+  function setJailbreakBusy(busy, hint) {
+    jbBusy = busy;
+    jbButton.disabled = busy || !jbAllowed;
+    jbHenButton.disabled = busy || !jbAllowed;
+    if (busy) {
+      jbButton.textContent = jbActive === "goldhen" ? "running..." : "Jailbreak";
+      jbHenButton.textContent = jbActive === "hen" ? "running..." : "ps4-hen";
+    } else {
+      jbButton.textContent = "Jailbreak";
+      jbHenButton.textContent = "ps4-hen";
+    }
+    jbHint.textContent = hint ||
+      "GoldHEN v2.4b18.13 \u2014 latest version by SiSTRo";
+  }
+
+  function jailbreak(mode) {
+    if (jbBusy || !jbAllowed) return;
+    if (!active || !session) {
+      addLog("error", ageText(), "not connected yet \u2014 wait for the session");
+      return;
+    }
+    jbActive = mode;
+    setJailbreakBusy(true, "chain requested; watch the live log");
+    addLog("info", ageText(), "jailbreak button pressed (" + mode + ")");
+    request("POST", "/api/jailbreak", {
+      session_id: session.id,
+      payload: mode
+    }, { "X-FW14-Session": session.secret }, 15000).then(function () {
+      addLog("stage", ageText(), "server started the chain (" + mode + ")");
+    }).catch(function (error) {
+      setJailbreakBusy(false, "start failed: " + String(error.message || error));
+      addLog("error", ageText(), "jailbreak: " + String(error.message || error));
+    });
+  }
+
   pauseButton.onclick = function () {
     paused = !paused;
     pauseButton.textContent = paused ? "resume" : "pause";
@@ -421,6 +486,9 @@
     logBox.innerHTML = "";
     logLines = 0;
   };
+
+  jbButton.onclick = function () { jailbreak("goldhen"); };
+  jbHenButton.onclick = function () { jailbreak("hen"); };
 
   window.addEventListener("load", function () {
     pollLog();
