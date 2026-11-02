@@ -33,75 +33,10 @@ image patch offsets are pinned, and the tools reject any hash mismatch.
 Before starting, back up saves you care about and use a stable power supply.
 A failed run can power the console off without warning.
 
-## Package layout
+Verify the shipped payload hashes before the first run —
+`sha256sum -c SHA256SUMS` ([details](#verify-the-payload)).
 
-```
-ps4-14.00-hen-public/
-├── chain-driver/chain.py     chain driver (stages, gates, recovery)
-├── lab/server.py             queue + page server (stdlib only)
-├── lab/web/                  page loaded by the console
-├── lab/ps4-lab.service       systemd user unit for an always-on host
-├── artifacts/goldhen.bin     official GoldHEN v2.4b18.13 payload (default)
-├── artifacts/hen.bin         pinned ps4-hen 2.2.0 image (--payload hen)
-├── artifacts/pkb.bin         pinned 632-byte kernel patch blob
-├── probes/                   browser-side stages and manifests
-├── tools/                    payload preparation and HEN patchers
-├── README.md  CHANGELOG.md  RISKS.md  COMPLIANCE.md  CREDITS.md
-└── SHA256SUMS
-```
-
-The selected payload (`artifacts/goldhen.bin` by default, or
-`artifacts/hen.bin` with `--payload hen`) and `probes/stage_patch_v1.js` are
-required at runtime; the driver refuses to start without them. Recent changes
-are listed in [`CHANGELOG.md`](CHANGELOG.md).
-
-## 1. Verify the payload
-
-| file | sha256 | size | contents |
-| --- | --- | --- | --- |
-| `artifacts/goldhen.bin` | `39452f5e…09ea4d` | 297 496 | official GoldHEN v2.4b18.13 raw payload, unmodified |
-| `artifacts/hen.bin` | `820f9bbe…cebae9` | 562 240 | ps4-hen 2.2.0 + Debug Settings patch + `td_name` gate NOP |
-| `artifacts/pkb.bin` | `165d2ad9…a49c02` | 632 | reviewed 14.00 ring-0 patch blob |
-| `probes/stage_patch_v1.js` | rendered locally | — | patch probe with the blob embedded |
-
-From the package root:
-
-```bash
-sha256sum -c SHA256SUMS
-python3 tools/prepare_operator_data.py --check
-```
-
-The first command verifies every shipped file, including both payload images.
-The second validates the ps4-hen image and kernel blob and re-renders the
-patch probe; it does not modify `goldhen.bin`. If a hash does not match,
-**stop**. GoldHEN is the official GoldHEN project's payload; the ps4-hen image
-is Scene-Collective/ps4-hen 2.2.0 work with this project's image patches
-applied; the kernel blob derives from Hx1400 research material. See
-[`CREDITS.md`](CREDITS.md).
-
-## 2. Rebuild the payload (optional)
-
-The bundled files are already valid. `artifacts/goldhen.bin` is used exactly
-as released by the GoldHEN project and is not modified by these tools.
-
-To rebuild the ps4-hen image from your own copies:
-
-```bash
-python3 tools/prepare_operator_data.py --hen /path/to/hen.bin --blob /path/to/pkb.bin
-```
-
-Accepted HEN inputs:
-
-| sha256 | action |
-| --- | --- |
-| `29ec095f…edec06` | pristine 2.2.0; applies both patches |
-| `1c1cec9f…222bd` | 3-patch Debug Settings image; applies the gate NOP |
-| `820f9bbe…cebae9` | shipped final image; used as-is |
-
-The script validates the result and blob, writes `artifacts/hen.bin`, and
-renders `probes/stage_patch_v1.js`. Use `--check` to validate without writing.
-
-## 3. Run
+## Run
 
 ### Start the lab server
 
@@ -186,6 +121,74 @@ Without `--launch`, the driver stops after the kernel patch and sandbox escape
 (and `safedown` for GoldHEN); it does not start a payload. A run takes a few
 minutes and can take longer while a heap draw is retried; watch the stage names
 on the console page.
+
+## Package layout
+
+```
+ps4-14.00-hen-public/
+├── chain-driver/chain.py     chain driver (stages, gates, recovery)
+├── lab/server.py             queue + page server (stdlib only)
+├── lab/web/                  page loaded by the console
+├── lab/ps4-lab.service       systemd user unit for an always-on host
+├── artifacts/goldhen.bin     official GoldHEN v2.4b18.13 payload (default)
+├── artifacts/hen.bin         pinned ps4-hen 2.2.0 image (--payload hen)
+├── artifacts/pkb.bin         pinned 632-byte kernel patch blob
+├── probes/                   browser-side stages and manifests
+├── tools/                    payload preparation and HEN patchers
+├── README.md  CHANGELOG.md  RISKS.md  COMPLIANCE.md  CREDITS.md
+└── SHA256SUMS
+```
+
+The selected payload (`artifacts/goldhen.bin` by default, or
+`artifacts/hen.bin` with `--payload hen`) and `probes/stage_patch_v1.js` are
+required at runtime; the driver refuses to start without them. Recent changes
+are listed in [`CHANGELOG.md`](CHANGELOG.md).
+
+## Verify the payload
+
+| file | sha256 | size | contents |
+| --- | --- | --- | --- |
+| `artifacts/goldhen.bin` | `39452f5e…09ea4d` | 297 496 | official GoldHEN v2.4b18.13 raw payload, unmodified |
+| `artifacts/hen.bin` | `820f9bbe…cebae9` | 562 240 | ps4-hen 2.2.0 + Debug Settings patch + `td_name` gate NOP |
+| `artifacts/pkb.bin` | `165d2ad9…a49c02` | 632 | reviewed 14.00 ring-0 patch blob |
+| `probes/stage_patch_v1.js` | rendered locally | — | patch probe with the blob embedded |
+
+From the package root:
+
+```bash
+sha256sum -c SHA256SUMS
+python3 tools/prepare_operator_data.py --check
+```
+
+The first command verifies every shipped file, including both payload images.
+The second validates the ps4-hen image and kernel blob and re-renders the
+patch probe; it does not modify `goldhen.bin`. If a hash does not match,
+**stop**. GoldHEN is the official GoldHEN project's payload; the ps4-hen image
+is Scene-Collective/ps4-hen 2.2.0 work with this project's image patches
+applied; the kernel blob derives from Hx1400 research material. See
+[`CREDITS.md`](CREDITS.md).
+
+## Rebuild the payload (optional)
+
+The bundled files are already valid. `artifacts/goldhen.bin` is used exactly
+as released by the GoldHEN project and is not modified by these tools.
+
+To rebuild the ps4-hen image from your own copies:
+
+```bash
+python3 tools/prepare_operator_data.py --hen /path/to/hen.bin --blob /path/to/pkb.bin
+```
+
+Accepted HEN inputs:
+
+| sha256 | action |
+| --- | --- |
+| `29ec095f…edec06` | pristine 2.2.0; applies both patches |
+| `1c1cec9f…222bd` | 3-patch Debug Settings image; applies the gate NOP |
+| `820f9bbe…cebae9` | shipped final image; used as-is |
+
+The script validates the result and blob, writes `artifacts/hen.bin`, and
+renders `probes/stage_patch_v1.js`. Use `--check` to validate without writing.
 
 ## Success
 
