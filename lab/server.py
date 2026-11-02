@@ -643,8 +643,11 @@ def make_handler(store: Store):
                 except ValueError:
                     since = 0
                 lines = store.log_since(since)
+                with _autostart_lock:
+                    chain_running = bool(_autostart_running)
                 self.json(200, {"seq": lines[-1]["seq"] if lines else since,
-                                "lines": lines})
+                                "lines": lines,
+                                "chain_running": chain_running})
                 return
             if path.startswith("/api/commands/") and path.endswith("/probe"):
                 cid = path[len("/api/commands/"):-len("/probe")]

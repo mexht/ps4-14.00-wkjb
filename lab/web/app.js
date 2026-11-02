@@ -52,6 +52,8 @@
   var jbBusy = false;
   var jbAllowed = true;
   var jbActive = "goldhen";
+  var jbChainSeen = false;
+  var jbPressedAt = 0;
 
   function setStatus(text, state) {
     pill.textContent = text;
@@ -161,6 +163,7 @@
     logTimer = setTimeout(pollLog, paused ? 5000 : 1000);
     request("GET", "/api/log?since=" + logSeq, null, null, 8000).then(function (body) {
       if (!body || !body.lines) return;
+      syncChainState(body);
       for (var i = 0; i < body.lines.length; i += 1) {
         noteLine(body.lines[i]);
         if (body.lines[i].seq > logSeq) logSeq = body.lines[i].seq;
@@ -457,6 +460,25 @@
       "GoldHEN v2.4b18.13 \u2014 latest version by SiSTRo";
   }
 
+  function syncChainState(body) {
+    if (typeof body.chain_running !== "boolean") return;
+    if (body.chain_running) {
+      jbChainSeen = true;
+      jbPressedAt = 0;
+      if (!jbBusy) setJailbreakBusy(true, "chain running \u2014 watch the live log");
+      return;
+    }
+    if (jbChainSeen) {
+      jbChainSeen = false;
+      setJailbreakBusy(false, "chain finished \u2014 see the live log");
+      return;
+    }
+    if (jbBusy && jbPressedAt && Date.now() - jbPressedAt > 12000) {
+      jbPressedAt = 0;
+      setJailbreakBusy(false, "no chain started \u2014 check the log");
+    }
+  }
+
   function jailbreak(mode) {
     if (jbBusy || !jbAllowed) return;
     if (!active || !session) {
@@ -464,6 +486,8 @@
       return;
     }
     jbActive = mode;
+    jbPressedAt = Date.now();
+    jbChainSeen = false;
     setJailbreakBusy(true, "chain requested; watch the live log");
     addLog("info", ageText(), "jailbreak button pressed (" + mode + ")");
     request("POST", "/api/jailbreak", {

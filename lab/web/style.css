@@ -153,6 +153,11 @@ main {
   font-size: 12px;
 }
 
+/* the last-result card spans the full width, like the live log below */
+.result {
+  grid-column: 1 / -1;
+}
+
 .result-body {
   font-size: 13px;
   color: #8b9fb3;
