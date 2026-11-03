@@ -87,6 +87,32 @@ executes raw `.bin`; `.elf` images hang it, which is why the two paths use diffe
 `kern_reboot` while SceShellCore is still restarting and hard-hangs the console (no ICMP). The
 lab used to do exactly that; it now waits for an explicit press instead.
 
+### The legacy reboot watchdog is gone
+
+`main()` used to start `reboot_thread` before `kexec_load()`. That thread sleeps 1 s and then
+runs the old `evf_cancel(0x4000)` + `kill(1, SIGUSR1)` trigger — the exact call that wedges
+14.00. With `AUTO_TRIGGER` the thread never gets a chance, but on any build or run where the
+hook does not install it turns "payload did nothing" into a dead console one second later.
+
+Shipped builds now use `-DNO_REBOOT_WATCHDOG`: if `kern_reboot_hooked` is clear the payload
+prints `AUTO_TRIGGER: skipped (kern_reboot hook not installed)` and stays armed and idle
+instead of killing the console. `diag()` also `fsync()`s each line, so a crash leaves the
+markers on disk.
+
+### Known issue: `.elf` launch from PayLoader froze once (2026-11-03)
+
+Launching `linux-autoboot.elf` from the PayLoader on `/data/payloads/` produced the loader's
+"payload loaded" notification and then a hard freeze (no ICMP, white LED). The same build
+posted as a raw `.bin` to `:9090` boots Linux.
+
+The freeze happens inside the kernel-side hand-off, where ICMP proves nothing: the hook calls
+`wlanbt(0x2)` first thing, which takes the network down before any CPU quiesce. Diagnose with
+klog (3232) rather than ping; it shows whether `sys_kexec`, the two hook installs and
+`AUTO_TRIGGER` ran.
+
+Until that is settled, the `.bin` path (`:9090`, lab **Linux** button) is the supported
+one-click entry.
+
 ### Manual fallback (power menu)
 
 1. Boot Orbis, run the jailbreak **with the USB drives unplugged**.
