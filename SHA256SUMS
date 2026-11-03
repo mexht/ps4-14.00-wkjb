@@ -1,5 +1,6 @@
 39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d  ./artifacts/goldhen.bin
 820f9bbef2a7ffefdf3ba7f660cb501fcbc0c2849c70ab9ccfdf44da28cebae9  ./artifacts/hen.bin
+278fcf2922f9cf5de27b2c0cfc0d0dae7cdcd69e121f80a67896a9ed65c2f6f3  ./artifacts/linux-autoboot.bin
 165d2ad966b3829d1fbcb53d5e7ecbc20563de4a6a49ee70d8126d0256a49c02  ./artifacts/pkb.bin
 33055324420406a039acf4f96ef92bb1f94ebe4b1b9279cc765ae38ad7f5b9a0  ./artifacts/README.md
 aebc8fad3b8adc0460504f77a4480fb42e27961816b4464440ac2c23fae2fe1c  ./chain-driver/chain.py

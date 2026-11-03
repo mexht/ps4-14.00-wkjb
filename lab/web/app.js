@@ -36,6 +36,8 @@
   var jbHint = document.getElementById("jb-hint");
   var jbHenButton = document.getElementById("jb-hen");
   var jbHenHint = document.getElementById("jb-hen-hint");
+  var jbLinuxButton = document.getElementById("jb-linux");
+  var jbLinuxHint = document.getElementById("jb-linux-hint");
 
   var session = null;
   var active = false;
@@ -427,8 +429,10 @@
         jbAllowed = false;
         jbButton.disabled = true;
         jbHenButton.disabled = true;
+        jbLinuxButton.disabled = true;
         jbHint.textContent = "not a PS4 client \u2014 jailbreak disabled";
         jbHenHint.textContent = "not a PS4 client";
+        jbLinuxHint.textContent = "not a PS4 client";
       }
       active = true;
       connectedAt = Date.now();
@@ -449,12 +453,15 @@
     jbBusy = busy;
     jbButton.disabled = busy || !jbAllowed;
     jbHenButton.disabled = busy || !jbAllowed;
+    jbLinuxButton.disabled = busy || !jbAllowed;
     if (busy) {
       jbButton.textContent = jbActive === "goldhen" ? "running..." : "Jailbreak";
       jbHenButton.textContent = jbActive === "hen" ? "running..." : "ps4-hen";
+      jbLinuxButton.textContent = jbActive === "linux" ? "running..." : "Linux";
     } else {
       jbButton.textContent = "Jailbreak";
       jbHenButton.textContent = "ps4-hen";
+      jbLinuxButton.textContent = "Linux";
     }
     jbHint.textContent = hint ||
       "GoldHEN v2.4b18.13 \u2014 latest version by SiSTRo";
@@ -475,7 +482,9 @@
     }
     if (jbBusy && jbPressedAt && Date.now() - jbPressedAt > 12000) {
       jbPressedAt = 0;
-      setJailbreakBusy(false, "no chain started \u2014 check the log");
+      setJailbreakBusy(false, jbActive === "linux"
+        ? "linux payload requested \u2014 see the live log"
+        : "no chain started \u2014 check the log");
     }
   }
 
@@ -513,6 +522,7 @@
 
   jbButton.onclick = function () { jailbreak("goldhen"); };
   jbHenButton.onclick = function () { jailbreak("hen"); };
+  jbLinuxButton.onclick = function () { jailbreak("linux"); };
 
   window.addEventListener("load", function () {
     pollLog();

@@ -360,6 +360,16 @@ button:hover {
   background: #2b3a4c;
 }
 
+.jb-button.is-linux {
+  background: #1b3a5c;
+  border-color: #2f6ea8;
+  color: #dbeaff;
+}
+
+.jb-button.is-linux:hover {
+  background: #224b72;
+}
+
 .jb-hint {
   margin: 0;
   color: #9fb2c6;

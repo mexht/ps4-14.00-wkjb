@@ -34,6 +34,7 @@ import json
 import os
 import re
 import secrets
+import socket
 import subprocess
 import sys
 import threading
@@ -64,9 +65,57 @@ MAX_LOG = 2000
 # the session registers. The console still has to open the browser, but nothing
 # has to be typed or run on the PC: the page is the trigger, like the app
 # launcher in a one-click setup.
-AUTOSTART_MODES = ("goldhen", "hen")
+AUTOSTART_MODES = ("goldhen", "hen", "linux")
 _autostart_lock = threading.Lock()
 _autostart_running = set()
+
+LINUX_PAYLOAD = HERE.parent / "artifacts" / "linux-autoboot.bin"
+
+
+def binloader_ready(ip: str, timeout: float = 1.5) -> bool:
+    try:
+        with socket.create_connection((ip, 9090), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def post_linux_payload(ip: str, timeout: float = 120.0,
+                       settle: float = 12.0) -> tuple:
+    """Send the Linux autoboot payload to GoldHEN's binloader (port 9090).
+
+    The chain leaves GoldHEN running with binloader open. That one raw .bin
+    arms kexec, hooks kern_reboot and boots Linux -- no power-menu step.
+
+    Timing matters: posting in the same second the installer returns fires
+    kern_reboot while SceShellCore is still restarting, which hard-hangs the
+    console. Wait for it to settle, then require 9090 to accept before posting.
+    """
+    try:
+        blob = LINUX_PAYLOAD.read_bytes()
+    except OSError as exc:
+        return False, "linux payload missing: %s" % exc
+    time.sleep(settle)
+    deadline = time.time() + timeout
+    last = "binloader never opened"
+    while time.time() < deadline:
+        if not binloader_ready(ip):
+            last = "9090 not accepting yet"
+            time.sleep(2)
+            continue
+        # 9090 is listening; give the shell one more beat before we jump.
+        time.sleep(3)
+        try:
+            req = Request("http://%s:9090/" % ip, data=blob, method="POST",
+                          headers={"Content-Type": "application/octet-stream"})
+            with urlopen(req, timeout=15) as resp:
+                if resp.status == 200:
+                    return True, "HTTP 200"
+                last = "HTTP %s" % resp.status
+        except (HTTPError, URLError, OSError) as exc:
+            last = str(exc)
+        time.sleep(3)
+    return False, last
 
 
 def is_ps4_user_agent(user_agent) -> bool:
@@ -79,8 +128,14 @@ def is_ps4_client(row: dict) -> bool:
 
 
 def start_chain(store, session_id: str, mode: str, why: str = "auto") -> bool:
-    """Spawn chain.py for a session. One chain at a time, per server."""
-    if mode not in AUTOSTART_MODES:
+    """Spawn chain.py for a session. One chain at a time, per server.
+
+    mode "linux" is not a chain: it only hands the Linux payload to a console
+    that is already jailbroken, so nothing depends on exploit timing.
+    """
+    if mode not in AUTOSTART_MODES and mode != "linux":
+        return False
+    if why == "auto" and mode == "linux":
         return False
     if why == "auto" and os.environ.get("FW14_AUTOSTART", "1") == "0":
         return False
@@ -89,6 +144,7 @@ def start_chain(store, session_id: str, mode: str, why: str = "auto") -> bool:
         store.event("warn", "chain refused: %s is not a PS4 client"
                     % str(session_id)[:8], "pc")
         return False
+    client_ip = row.get("ip")
     script = HERE.parent / "chain-driver" / "chain.py"
     if not script.is_file():
         store.event("error", "chain-driver/chain.py is missing", "pc")
@@ -101,6 +157,14 @@ def start_chain(store, session_id: str, mode: str, why: str = "auto") -> bool:
     def run() -> None:
         try:
             store.dumps.mkdir(parents=True, exist_ok=True)
+            if mode == "linux":
+                store.event("stage", "sending linux-autoboot.bin to %s:9090"
+                            % client_ip, "pc")
+                ok, detail = post_linux_payload(client_ip, settle=2.0)
+                store.event("ok" if ok else "error",
+                            "linux payload %s (%s)"
+                            % ("sent" if ok else "failed", detail), "pc")
+                return
             log_path = store.dumps / ("chain-%s.log" % session_id[:8])
             store.event("stage", "chain start (%s) for %s"
                         % (why, session_id[:8]), "pc")
