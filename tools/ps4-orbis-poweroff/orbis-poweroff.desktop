@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Power off (Orbis)
+Comment=Shut this Linux session down so the PS4 boots Orbis next
+Exec=/home/ps4/.local/bin/orbis-poweroff.sh
+Icon=system-shutdown
+Terminal=false
+Categories=System;

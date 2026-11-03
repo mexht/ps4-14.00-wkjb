@@ -150,6 +150,29 @@ was on the stack. `evf_set(evf, 0x1b, 0)` + `kill(1, SIGUSR1)` does give an orde
 its last step (white LED, kernel alive, all userland ports closed).
 `reboot(0x4000)` = power off (`SIGUSR2` path). Do not use either on 14.00.
 
+## Returning to Orbis (Linux → Orbis)
+
+There is no warm path back: on this build `reboot` and a plain `shutdown` do not come back
+cleanly, so the kernel is asked to power the board off directly.
+
+```sh
+sync; sync
+systemctl poweroff -f        # ps4 has NOPASSWD sudo; logind allows it too
+```
+
+Then press the power button and Orbis boots as usual.
+
+For the pad, `tools/ps4-orbis-poweroff/` installs a launcher and a Steam non-Steam shortcut:
+
+| file | where it goes |
+|---|---|
+| `orbis-poweroff.sh` | `~ps4/.local/bin/orbis-poweroff.sh` |
+| `orbis-poweroff.desktop` | `~ps4/.local/share/applications/` |
+| `add-shortcut.py` | writes `…/userdata/<id>/config/shortcuts.vdf` (binary VDF) |
+
+The Steam entry is named **Power off (Orbis)** and appears next time Steam starts, since Steam
+only reads `shortcuts.vdf` at startup.
+
 ## Required boot files
 
 `bootargs.txt` must include a root, otherwise the initramfs drops to a rescue shell:
