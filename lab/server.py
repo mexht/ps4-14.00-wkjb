@@ -34,7 +34,6 @@ import json
 import os
 import re
 import secrets
-import socket
 import subprocess
 import sys
 import threading
@@ -72,24 +71,15 @@ _autostart_running = set()
 LINUX_PAYLOAD = HERE.parent / "artifacts" / "linux-autoboot.bin"
 
 
-def binloader_ready(ip: str, timeout: float = 1.5) -> bool:
-    try:
-        with socket.create_connection((ip, 9090), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
 def post_linux_payload(ip: str, timeout: float = 120.0,
-                       settle: float = 12.0) -> tuple:
-    """Send the Linux autoboot payload to GoldHEN's binloader (port 9090).
+                       settle: float = 2.0) -> tuple:
+    """POST the raw .bin to GoldHEN's binloader (port 9090).
 
-    The chain leaves GoldHEN running with binloader open. That one raw .bin
-    arms kexec, hooks kern_reboot and boots Linux -- no power-menu step.
-
-    Timing matters: posting in the same second the installer returns fires
-    kern_reboot while SceShellCore is still restarting, which hard-hangs the
-    console. Wait for it to settle, then require 9090 to accept before posting.
+    Do not probe the port with a bare TCP connect first. GoldHEN treats every
+    accepted connection as an incoming payload, so a connect-and-close is
+    logged as "invalid payload format" and takes the binloader down with it --
+    the follow-up POST then has nothing to talk to. The POST itself is the
+    health check: connection refused just means "not up yet, retry".
     """
     try:
         blob = LINUX_PAYLOAD.read_bytes()
@@ -97,24 +87,18 @@ def post_linux_payload(ip: str, timeout: float = 120.0,
         return False, "linux payload missing: %s" % exc
     time.sleep(settle)
     deadline = time.time() + timeout
-    last = "binloader never opened"
+    last = "no attempt"
     while time.time() < deadline:
-        if not binloader_ready(ip):
-            last = "9090 not accepting yet"
-            time.sleep(2)
-            continue
-        # 9090 is listening; give the shell one more beat before we jump.
-        time.sleep(3)
         try:
             req = Request("http://%s:9090/" % ip, data=blob, method="POST",
                           headers={"Content-Type": "application/octet-stream"})
-            with urlopen(req, timeout=15) as resp:
+            with urlopen(req, timeout=20) as resp:
                 if resp.status == 200:
-                    return True, "HTTP 200"
+                    return True, "HTTP 200 (%d bytes)" % len(blob)
                 last = "HTTP %s" % resp.status
         except (HTTPError, URLError, OSError) as exc:
             last = str(exc)
-        time.sleep(3)
+        time.sleep(4)
     return False, last
 
 

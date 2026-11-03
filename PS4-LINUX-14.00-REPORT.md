@@ -178,5 +178,10 @@ rather than shutting the console down.
 - `%p` in this kernel sometimes prints `0xffffffffffffffff` for valid pointers; `%lx` prints
   are trustworthy.
 - The payload's diag file on USB is truncated but not flushed before a hang; klog is the
-  reliable channel.
+  reliable channel. (Current builds `fsync()` every line, so this is fixed going forward.)
+- **Never probe port 9090.** GoldHEN's binloader treats *every* accepted TCP connection as an
+  incoming payload. A connect-and-close — or one stray byte from `echo > /dev/tcp/.../9090` —
+  is logged as `invalid payload format... skipping` and the binloader then exits for that
+  boot; the next POST fails with connection refused. The POST itself is the only safe health
+  check.
 - Only run one Linux payload per boot (double arming hangs the GPU/ShellCore).
