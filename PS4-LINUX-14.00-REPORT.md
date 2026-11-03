@@ -83,6 +83,19 @@ Both builds ship: `/data/payloads/linux-autoboot.elf` (PayLoader, local) and
 `artifacts/linux-autoboot.bin` (lab POST, network). Note the binloader on `:9090` only
 executes raw `.bin`; `.elf` images hang it, which is why the two paths use different files.
 
+**Validated 2026-11-03 23:48** — lab **Linux** button, `.bin` POST to `:9090`, HTTP 200, Linux
+7.1.7 up ~2 s later. The payload's fsync'd diag on the boot USB reads:
+
+```
+fw=1400
+pre_kexec=20415488
+post_kexec=0
+watchdog=0
+```
+
+`watchdog=0` confirms the no-watchdog build, and the missing `kexec_load_rc` line confirms the
+payload never returned from `kexec_load()` — `AUTO_TRIGGER` fired and jumped.
+
 **Do not chain these.** Sending the payload in the same second the installer returns fires
 `kern_reboot` while SceShellCore is still restarting and hard-hangs the console (no ICMP). The
 lab used to do exactly that; it now waits for an explicit press instead.
