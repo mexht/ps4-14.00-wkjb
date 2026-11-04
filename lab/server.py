@@ -102,6 +102,30 @@ def post_linux_payload(ip: str, timeout: float = 120.0,
     return False, last
 
 
+def chain_health(store) -> tuple:
+    """Did the most recent jailbreak attempt in this log actually complete?
+
+    The Linux payload must only be posted into a console whose GoldHEN
+    install finished. Firing kern_reboot while SceShellCore is still
+    restarting -- or after a chain that aborted mid-install -- hard-freezes
+    the console, so a failed chain blocks the hand-off until a cold boot.
+    """
+    if _autostart_running:
+        return False, "a jailbreak is still running"
+    for line in reversed(store.log):
+        text = line.get("text") or ""
+        match = re.match(r"chain exited (-?\d+)", text)
+        if match:
+            if match.group(1) == "0":
+                return True, text
+            return False, ("last jailbreak did not complete (%s) - cold boot, "
+                           "run the jailbreak, then press Linux again" % text)
+        if "boot is spent" in text:
+            return False, ("last boot is spent - cold boot, run the jailbreak, "
+                           "then press Linux again")
+    return False, "no jailbreak recorded - run the jailbreak first"
+
+
 def is_ps4_user_agent(user_agent) -> bool:
     """The chain is 14.00-specific: never start it for a desktop browser."""
     return "PlayStation 4" in str(user_agent or "")
@@ -811,6 +835,13 @@ def make_handler(store: Store):
                         self.json(403, {"error": "not a PS4 client"})
                         return
                     mode = str(value.get("payload", "goldhen"))
+                    if mode == "linux":
+                        healthy, why = chain_health(store)
+                        if not healthy:
+                            store.event("warn", "linux payload refused: %s"
+                                        % why, "pc")
+                            self.json(409, {"error": why})
+                            return
                     if not start_chain(store, sid, mode, "button"):
                         self.json(409, {"error": "a chain is already running"})
                         return
